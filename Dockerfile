@@ -3,9 +3,12 @@ FROM golang:1.20-alpine AS builder
 
 WORKDIR /app
 
-# 将 go.mod 和 go.sum 复制进来并下载依赖
-COPY go.mod go.sum ./
+# 只复制 go.mod，不再引用 go.sum
+COPY go.mod ./
+
+# 初始化模块并下载依赖
 RUN go mod download
+RUN go mod tidy
 
 # 复制源代码
 COPY . .
