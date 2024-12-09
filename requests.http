@@ -1,0 +1,10 @@
+### 测试文件上传服务
+POST http://localhost:3000/upload
+Content-Type: multipart/form-data; boundary=boundary123
+
+--boundary123
+Content-Disposition: form-data; name="image"; filename="u147.png"
+Content-Type: image/png
+
+< E:/Downloads/u147.png
+--boundary123--
