@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -23,14 +25,39 @@ func getEnv(key, defaultVal string) string {
 }
 
 var (
-	uploadPath    = getEnv("UPLOAD_PATH", "/app/images")
-	baseURL       = getEnv("BASE_URL", "https://voxsay.com/upload/")
+	uploadPath    = getEnv("UPLOAD_PATH", "E:/projects/go/uploader/images")
+	baseURL       = getEnv("BASE_URL", "https://dify.talkweb.com.cn/uploader/")
 	maxUploadSize = 10 << 20 // 10MB
 )
 
 // 响应结构体
 type response struct {
 	URL string `json:"url"`
+}
+
+// 批量上传响应结构体
+type batchResponse struct {
+	URLs   []string          `json:"urls"`
+	Errors map[string]string `json:"errors,omitempty"`
+}
+
+// 处理单个文件上传的函数
+func handleSingleUpload(file multipart.File, header *multipart.FileHeader) (string, error) {
+	// 使用时间戳防止重名冲突
+	filename := fmt.Sprintf("%d-%s", time.Now().UnixNano(), filepath.Base(header.Filename))
+	dstPath := filepath.Join(uploadPath, filename)
+
+	dstFile, err := os.Create(dstPath)
+	if err != nil {
+		return "", fmt.Errorf("创建文件失败: %v", err)
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, file); err != nil {
+		return "", fmt.Errorf("复制文件失败: %v", err)
+	}
+
+	return baseURL + filename, nil
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -88,9 +115,79 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response{URL: baseURL + filename})
 }
 
+// 批量上传处理器
+func batchUploadHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 限制请求体大小
+	r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadSize*10)) // 允许更大的总体积
+	if err := r.ParseMultipartForm(int64(maxUploadSize * 10)); err != nil {
+		http.Error(w, "文件太大或表单数据无效", http.StatusBadRequest)
+		return
+	}
+
+	// 确保上传目录存在
+	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
+		http.Error(w, "无法创建上传目录", http.StatusInternalServerError)
+		return
+	}
+
+	files := r.MultipartForm.File["images"] // 注意字段名为 images
+	if len(files) == 0 {
+		http.Error(w, "没有上传文件", http.StatusBadRequest)
+		return
+	}
+
+	// 准备响应数据
+	response := batchResponse{
+		URLs:   make([]string, 0, len(files)),
+		Errors: make(map[string]string),
+	}
+
+	// 使用 WaitGroup 处理并发上传
+	var wg sync.WaitGroup
+	var mu sync.Mutex // 保护响应数据的并发访问
+
+	for _, fileHeader := range files {
+		wg.Add(1)
+		go func(fh *multipart.FileHeader) {
+			defer wg.Done()
+
+			file, err := fh.Open()
+			if err != nil {
+				mu.Lock()
+				response.Errors[fh.Filename] = "打开文件失败: " + err.Error()
+				mu.Unlock()
+				return
+			}
+			defer file.Close()
+
+			url, err := handleSingleUpload(file, fh)
+			mu.Lock()
+			if err != nil {
+				response.Errors[fh.Filename] = err.Error()
+			} else {
+				response.URLs = append(response.URLs, url)
+			}
+			mu.Unlock()
+		}(fileHeader)
+	}
+
+	wg.Wait()
+
+	// 返回JSON响应
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/upload", uploadHandler)
+	mux.HandleFunc("/upload/batch", batchUploadHandler) // 添加新的路由
 
 	srv := &http.Server{
 		Addr:         ":3000",

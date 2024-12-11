@@ -8,3 +8,35 @@ Content-Type: image/png
 
 < E:/Downloads/u147.png
 --boundary123--
+
+### 测试批量文件上传服务
+POST http://localhost:3000/upload/batch
+Content-Type: multipart/form-data; boundary=boundary456
+
+--boundary456
+Content-Disposition: form-data; name="images"; filename="u298.png"
+Content-Type: image/png
+
+< E:/Downloads/batch/u298.png
+--boundary456
+
+--boundary456
+Content-Disposition: form-data; name="images"; filename="u293.png"
+Content-Type: image/png
+
+< E:/Downloads/batch/u293.png
+--boundary456
+
+--boundary456
+Content-Disposition: form-data; name="images"; filename="u283.png"
+Content-Type: image/png
+
+< E:/Downloads/batch/u283.png
+--boundary456
+
+--boundary456
+Content-Disposition: form-data; name="images"; filename="image-preview.png"
+Content-Type: image/png
+
+< E:/Downloads/batch/image-preview.png
+--boundary456--
