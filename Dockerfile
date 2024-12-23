@@ -3,6 +3,9 @@ FROM golang:1.20-alpine AS builder
 
 WORKDIR /app
 
+# 添加构建参数
+ARG SERVER_PORT=3000
+
 # 只复制 go.mod，不再引用 go.sum
 COPY go.mod ./
 
@@ -24,5 +27,6 @@ WORKDIR /app
 # 从构建阶段复制可执行文件
 COPY --from=builder /app/server /app/
 
-EXPOSE 3000
+# 暴露动态端口
+EXPOSE ${SERVER_PORT}
 ENTRYPOINT ["/app/server"]
