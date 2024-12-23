@@ -26,10 +26,6 @@ Environment variables:
 - `ALIBABA_CLOUD_ACCESS_KEY_ID`: Aliyun access key ID
 - `ALIBABA_CLOUD_ACCESS_KEY_SECRET`: Aliyun access key secret
 
-## API Documentation
-
-See `api/openapi.yaml` for detailed API documentation.
-
 ## Development
 
 ```bash
@@ -64,6 +60,66 @@ docker run -d \
   -e ALIBABA_CLOUD_ACCESS_KEY_ID=your_key_id \
   -e ALIBABA_CLOUD_ACCESS_KEY_SECRET=your_key_secret \
   media-processor
+```
+
+## API Examples
+
+### Single File Upload
+
+```bash
+# Upload a single image file
+curl -X POST http://localhost:3000/upload \
+  -F "image=@/path/to/your/image.jpg"
+
+# Response
+{
+  "url": "https://your-domain.com/upload/1234567890-image.jpg"
+}
+```
+
+### Batch File Upload
+
+```bash
+# Upload multiple image files
+curl -X POST http://localhost:3000/upload/batch \
+  -F "images=@/path/to/image1.jpg" \
+  -F "images=@/path/to/image2.jpg" \
+  -F "images=@/path/to/image3.jpg"
+
+# Response
+{
+  "urls": [
+    "https://your-domain.com/upload/1234567890-image1.jpg",
+    "https://your-domain.com/upload/1234567891-image2.jpg",
+    "https://your-domain.com/upload/1234567892-image3.jpg"
+  ]
+}
+```
+
+### OCR Text Recognition
+
+```bash
+# Extract text from an image URL
+curl -X POST http://localhost:3000/ocr \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-domain.com/1234567890-image.jpg"
+  }'
+
+# Response
+{
+  "statusCode": 200,
+  "headers": {
+    "content-type": "application/json;charset=utf-8",
+    "x-acs-request-id": "0B2607D1-62A2-5027-9A77-D7D8E69A275D"
+  },
+  "body": {
+    "Data": {
+      "Content": "检票：B9 FQ02351 长沙南站 G1003 厂 广州南站 Changshanan Guangzhounan 2024年 07 7月 29 日 09：07 开 12车 17C号 ￥314.0元 惠 二等座"
+    },
+    "RequestId": "0B2607D1-62A2-5027-9A77-D7D8E69A275D"
+  }
+}
 ```
 
 ## License

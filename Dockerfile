@@ -20,7 +20,10 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
 
 # 第二阶段：运行阶段
-FROM scratch
+FROM alpine:latest
+
+# 安装 CA 证书
+RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 
