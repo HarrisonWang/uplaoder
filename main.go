@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -14,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // 从环境变量获取配置项，若未定义则使用默认值
@@ -42,9 +43,9 @@ type batchResponse struct {
 }
 
 // 处理单个文件上传的函数
-func handleSingleUpload(file multipart.File, header *multipart.FileHeader) (string, error) {
+func handleSingleUpload(file io.Reader, filename string) (string, error) {
 	// 使用时间戳防止重名冲突
-	filename := fmt.Sprintf("%d-%s", time.Now().UnixNano(), filepath.Base(header.Filename))
+	filename = fmt.Sprintf("%d-%s", time.Now().UnixNano(), filepath.Base(filename))
 	dstPath := filepath.Join(uploadPath, filename)
 
 	dstFile, err := os.Create(dstPath)
@@ -60,84 +61,57 @@ func handleSingleUpload(file multipart.File, header *multipart.FileHeader) (stri
 	return baseURL + filename, nil
 }
 
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	// 只允许 POST 方法
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// 限制请求体大小，防止过大的文件上传占用内存
-	r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadSize))
-
-	// 解析multipart/form-data表单
-	if err := r.ParseMultipartForm(int64(maxUploadSize)); err != nil {
-		http.Error(w, "File too large or invalid form data", http.StatusBadRequest)
-		return
-	}
-
-	file, fileHeader, err := r.FormFile("image")
+// 单文件上传处理器
+func uploadHandler(c *gin.Context) {
+	// 获取上传的文件
+	file, err := c.FormFile("image")
 	if err != nil {
-		http.Error(w, "No file uploaded or incorrect field name 'image'", http.StatusBadRequest)
+		c.JSON(400, gin.H{"error": "No file uploaded or incorrect field name 'image'"})
 		return
 	}
-	defer file.Close()
 
-	// 创建上传目录（如果不存在则自动创建）
+	// 创建上传目录
 	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
 		log.Printf("Error creating upload directory: %v\n", err)
-		http.Error(w, "Unable to create upload directory", http.StatusInternalServerError)
+		c.JSON(500, gin.H{"error": "Unable to create upload directory"})
 		return
 	}
 
-	// 使用时间戳防止重名冲突，并对文件名进行基本清理
-	filename := fmt.Sprintf("%d-%s", time.Now().UnixNano(), filepath.Base(fileHeader.Filename))
-	dstPath := filepath.Join(uploadPath, filename)
-
-	dstFile, err := os.Create(dstPath)
+	// 打开文件
+	src, err := file.Open()
 	if err != nil {
-		log.Printf("Error creating file: %v\n", err)
-		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		c.JSON(500, gin.H{"error": "Error opening uploaded file"})
 		return
 	}
-	defer dstFile.Close()
+	defer src.Close()
 
-	// 将上传的内容写入目标文件中
-	if _, err := io.Copy(dstFile, file); err != nil {
-		log.Printf("Error while copying file data: %v\n", err)
-		http.Error(w, "Error while copying file data", http.StatusInternalServerError)
+	// 处理文件上传
+	url, err := handleSingleUpload(src, file.Filename)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 返回JSON响应，包括文件的访问URL
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response{URL: baseURL + filename})
+	c.JSON(200, response{URL: url})
 }
 
 // 批量上传处理器
-func batchUploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+func batchUploadHandler(c *gin.Context) {
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid form data"})
 		return
 	}
 
-	// 限制请求体大小
-	r.Body = http.MaxBytesReader(w, r.Body, int64(maxUploadSize*10)) // 允许更大的总体积
-	if err := r.ParseMultipartForm(int64(maxUploadSize * 10)); err != nil {
-		http.Error(w, "文件太大或表单数据无效", http.StatusBadRequest)
-		return
-	}
-
-	// 确保上传目录存在
-	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
-		http.Error(w, "无法创建上传目录", http.StatusInternalServerError)
-		return
-	}
-
-	files := r.MultipartForm.File["images"] // 注意字段名为 images
+	files := form.File["images"]
 	if len(files) == 0 {
-		http.Error(w, "没有上传文件", http.StatusBadRequest)
+		c.JSON(400, gin.H{"error": "No files uploaded"})
+		return
+	}
+
+	// 创建上传目录
+	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
+		c.JSON(500, gin.H{"error": "Unable to create upload directory"})
 		return
 	}
 
@@ -149,7 +123,7 @@ func batchUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 使用 WaitGroup 处理并发上传
 	var wg sync.WaitGroup
-	var mu sync.Mutex // 保护响应数据的并发访问
+	var mu sync.Mutex
 
 	for _, fileHeader := range files {
 		wg.Add(1)
@@ -165,7 +139,7 @@ func batchUploadHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			defer file.Close()
 
-			url, err := handleSingleUpload(file, fh)
+			url, err := handleSingleUpload(file, fh.Filename)
 			mu.Lock()
 			if err != nil {
 				response.Errors[fh.Filename] = err.Error()
@@ -177,29 +151,32 @@ func batchUploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wg.Wait()
-
-	// 返回JSON响应
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	c.JSON(200, response)
 }
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/upload", uploadHandler)
-	mux.HandleFunc("/upload/batch", batchUploadHandler) // 添加新的路由
+	// 设置 Gin 模式
+	gin.SetMode(gin.ReleaseMode)
 
+	// 创建 Gin 引擎
+	r := gin.Default()
+
+	// 设置文件上传大小限制
+	r.MaxMultipartMemory = int64(maxUploadSize)
+
+	// 注册路由
+	r.POST("/upload", uploadHandler)
+	r.POST("/upload/batch", batchUploadHandler)
+
+	// 创建 HTTP 服务器
 	srv := &http.Server{
 		Addr:         ":3000",
-		Handler:      mux,
+		Handler:      r,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
 
 	// 优雅关闭的信号处理
-	stopChan := make(chan os.Signal, 1)
-	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
 		log.Println("Server is running on http://localhost:3000")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -207,18 +184,19 @@ func main() {
 		}
 	}()
 
-	// 等待中断信号（Ctrl+C或系统SIGTERM）
-	<-stopChan
+	// 等待中断信号
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 	log.Println("Shutting down server...")
 
-	// 创建上下文，给予一定时间让当前请求处理完毕
+	// 创建上下文用于优雅关闭
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// 优雅关闭服务器
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
-	log.Println("Server exited gracefully.")
+	log.Println("Server exited gracefully")
 }
