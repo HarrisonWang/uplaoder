@@ -30,9 +30,6 @@ Thumbs.db
 # Environment files
 .env
 
-# go.sum
-go.sum
-
 # Requests
 *.http
 

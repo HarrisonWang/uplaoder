@@ -6,12 +6,12 @@ WORKDIR /app
 # 添加构建参数
 ARG SERVER_PORT=3000
 
-# 只复制 go.mod，不再引用 go.sum
+# 复制 go.mod
 COPY go.mod ./
 
-# 初始化模块并下载依赖
-RUN go mod download
-RUN go mod tidy
+# 初始化模块
+RUN go mod download && \
+    go mod tidy
 
 # 复制源代码
 COPY . .
