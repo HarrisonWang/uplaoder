@@ -6,8 +6,8 @@ WORKDIR /app
 # 添加构建参数
 ARG SERVER_PORT=3000
 
-# 复制 go.mod
-COPY go.mod ./
+# 复制 go.mod 和 go.sum
+COPY go.mod go.sum ./
 
 # 初始化模块
 RUN go mod download && \
@@ -17,10 +17,16 @@ RUN go mod download && \
 COPY . .
 
 # 编译为静态二进制文件
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server/main.go
 
 # 第二阶段：运行阶段
 FROM alpine:latest
+
+# 添加镜像元数据
+LABEL org.opencontainers.image.title="Media Processor"
+LABEL org.opencontainers.image.description="A Go service for processing media files, featuring file upload and OCR capabilities. Built with Gin framework and Aliyun OCR API, supporting single/batch file uploads and text recognition from images."
+LABEL org.opencontainers.image.source="https://github.com/harrisonwang/media-processor"
+LABEL org.opencontainers.image.licenses="MIT"
 
 # 安装 CA 证书
 RUN apk --no-cache add ca-certificates
