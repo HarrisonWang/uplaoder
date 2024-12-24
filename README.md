@@ -21,7 +21,7 @@ Environment variables:
 
 - `SERVER_PORT`: Server port (default: "3000")
 - `UPLOAD_PATH`: Path to store uploaded files
-- `BASE_URL`: Base URL for accessing uploaded files
+- `MEDIA_URL_PREFIX`: URL prefix for accessing uploaded media files
 - `OCR_ENDPOINT`: Aliyun OCR API endpoint
 - `ALIBABA_CLOUD_ACCESS_KEY_ID`: Aliyun access key ID
 - `ALIBABA_CLOUD_ACCESS_KEY_SECRET`: Aliyun access key secret
@@ -56,7 +56,7 @@ docker run -d \
   -p 3000:3000 \
   -e SERVER_PORT=3000 \
   -e UPLOAD_PATH=/app/images \
-  -e BASE_URL=https://your-domain.com/upload/ \
+  -e MEDIA_URL_PREFIX=https://your-domain.com/media/ \
   -e ALIBABA_CLOUD_ACCESS_KEY_ID=your_key_id \
   -e ALIBABA_CLOUD_ACCESS_KEY_SECRET=your_key_secret \
   media-processor

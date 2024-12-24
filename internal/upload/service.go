@@ -13,14 +13,14 @@ import (
 const MaxUploadSize = 10 << 20 // 10MB
 
 type Service struct {
-	uploadPath string
-	baseURL    string
+	uploadPath     string
+	mediaUrlPrefix string
 }
 
 func NewService(config *configs.Config) *Service {
 	return &Service{
-		uploadPath: config.Upload.Path,
-		baseURL:    config.Upload.BaseURL,
+		uploadPath:     config.Upload.Path,
+		mediaUrlPrefix: config.Upload.MediaUrlPrefix,
 	}
 }
 
@@ -43,5 +43,5 @@ func (s *Service) Upload(file io.Reader, filename string) (string, error) {
 		return "", fmt.Errorf("复制文件失败: %v", err)
 	}
 
-	return s.baseURL + filename, nil
+	return s.mediaUrlPrefix + filename, nil
 }

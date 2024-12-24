@@ -5,7 +5,7 @@ server:
 
 upload:
   path: "./images"
-  base_url: "https://xxx.com/images/" # Nginx 代理的资源访问路径
+  media_url_prefix: "https://xxx.com/images/"  # 上传文件的访问URL前缀
   max_size: 10485760  # 10MB in bytes
 
 ocr:

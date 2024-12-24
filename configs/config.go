@@ -11,8 +11,8 @@ type Config struct {
 		Port string `yaml:"port"`
 	} `yaml:"server"`
 	Upload struct {
-		Path    string `yaml:"path"`
-		BaseURL string `yaml:"base_url"`
+		Path           string `yaml:"path"`
+		MediaUrlPrefix string `yaml:"media_url_prefix"`
 	} `yaml:"upload"`
 	OCR struct {
 		Endpoint                    string `yaml:"endpoint"`
@@ -35,8 +35,8 @@ func Load() *Config {
 	if val := os.Getenv("UPLOAD_PATH"); val != "" {
 		config.Upload.Path = val
 	}
-	if val := os.Getenv("BASE_URL"); val != "" {
-		config.Upload.BaseURL = val
+	if val := os.Getenv("MEDIA_URL_PREFIX"); val != "" {
+		config.Upload.MediaUrlPrefix = val
 	}
 	if val := os.Getenv("OCR_ENDPOINT"); val != "" {
 		config.OCR.Endpoint = val
