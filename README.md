@@ -62,6 +62,33 @@ docker run -d \
   media-processor
 ```
 
+## Docker Compose Deployment
+
+```bash
+# Create docker-compose.yml file
+cat << 'EOF' > docker-compose.yml
+services:
+  media-processor:
+    image: iamxiaowangye/media-processor:latest
+    container_name: media-processor
+    restart: always
+    environment:
+      - SERVER_PORT=3000
+      - UPLOAD_PATH=/app/images
+      - MEDIA_URL_PREFIX=https://your-domain.com/media/
+      - OCR_ENDPOINT=ocr-api.cn-hangzhou.aliyuncs.com
+      - ALIBABA_CLOUD_ACCESS_KEY_ID=your_key_id
+      - ALIBABA_CLOUD_ACCESS_KEY_SECRET=your_key_secret
+    volumes:
+      - ./volumes/media-processor/images:/app/images
+    ports:
+      - "3000:3000"
+EOF
+
+# Run the container
+docker-compose up -d
+```
+
 ## API Examples
 
 ### Single File Upload
