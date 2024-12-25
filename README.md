@@ -47,6 +47,8 @@ go run cmd/server/main.go
 
 ## Docker Deployment
 
+### Docker command Deployment
+
 ```bash
 # Build the image
 docker build -t media-processor .
@@ -62,7 +64,7 @@ docker run -d \
   media-processor
 ```
 
-## Docker Compose Deployment
+### Docker Compose Deployment
 
 ```bash
 # Create docker-compose.yml file
@@ -87,6 +89,82 @@ EOF
 
 # Run the container
 docker-compose up -d
+```
+
+## Binary Deployment
+
+### Binary Execution
+
+#### Compile the binary for Linux
+
+```powershell
+# Windows PowerShell
+$env:GOOS="linux"; $env:GOARCH="amd64"; go build -o media-processor cmd/server/main.go
+
+# Windows CMD
+set GOOS=linux&& set GOARCH=amd64&& go build -o media-processor cmd/server/main.go
+```
+
+#### Prepare runtime environment
+
+1. Create directories on server
+
+```bash
+# Create main directory
+mkdir -p /opt/media-processor
+cd /opt/media-processor
+
+# Create configs and images directory
+mkdir configs images
+```
+
+2. Copy config file to server and edit config file
+
+```bash
+cp configs/config.yaml.example configs/config.yaml
+vim configs/config.yaml
+```
+
+3. Copy binary file to server
+
+```bash
+cp media-processor /opt/media-processor/media-processor
+```
+
+#### Run the binary on server
+
+```bash
+cd /opt/media-processor
+./media-processor
+```
+
+### Binary as a service
+
+```bash
+# Create systemd service file
+cat << 'EOF' > /etc/systemd/system/media-processor.service
+[Unit]
+Description=Media Processor Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/media-processor
+ExecStart=/opt/media-processor/media-processor
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd
+systemctl daemon-reload
+
+# Start the service
+systemctl start media-processor
+
+# Enable the service
+systemctl enable media-processor
 ```
 
 ## API Examples
