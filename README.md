@@ -151,7 +151,7 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/media-processor
 ExecStart=/opt/media-processor/media-processor
-Restart=always
+Restart=no
 
 [Install]
 WantedBy=multi-user.target
@@ -165,6 +165,18 @@ systemctl start media-processor
 
 # Enable the service
 systemctl enable media-processor
+
+# Check the service status
+systemctl status media-processor
+
+# Stop the service
+systemctl stop media-processor
+
+# Disable the service
+systemctl disable media-processor
+
+# Tail the service log
+journalctl -u media-processor -f
 ```
 
 ## API Examples
