@@ -1,0 +1,115 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+          
+      - name: Build binaries
+        run: |
+          VERSION=${{ github.ref_name }}
+          BUILD_TIME=$(date -u +'%Y-%m-%d_%H:%M:%S')
+          
+          # 构建函数
+          build_binary() {
+            export GOOS=$1
+            export GOARCH=$2
+            export CGO_ENABLED=0
+            
+            OUTPUT=$3
+            
+            go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.BuildTime=${BUILD_TIME}'" \
+              -o "${OUTPUT}" cmd/server/main.go
+          }
+          
+          # Linux
+          build_binary linux amd64 release/linux/amd64/media-processor
+          build_binary linux arm64 release/linux/arm64/media-processor
+          
+          # Windows
+          build_binary windows amd64 release/windows/amd64/media-processor.exe
+          build_binary windows arm64 release/windows/arm64/media-processor.exe
+          
+          # macOS
+          build_binary darwin amd64 release/macos/amd64/media-processor
+          build_binary darwin arm64 release/macos/arm64/media-processor
+          
+      - name: Create release packages
+        run: |
+          # Linux packages
+          for arch in amd64 arm64; do
+            mkdir -p release/linux/$arch/media-processor/{configs,images}
+            cp release/linux/$arch/media-processor release/linux/$arch/media-processor/
+            cp configs/config.yaml.example release/linux/$arch/media-processor/configs/config.yaml
+            cd release/linux/$arch && tar -czf ../../media-processor-linux-$arch.tar.gz media-processor/
+            cd ../../..
+          done
+          
+          # Windows packages
+          for arch in amd64 arm64; do
+            mkdir -p release/windows/$arch/media-processor/{configs,images}
+            cp release/windows/$arch/media-processor.exe release/windows/$arch/media-processor/
+            cp configs/config.yaml.example release/windows/$arch/media-processor/configs/config.yaml
+            cd release/windows/$arch && zip -r ../../media-processor-windows-$arch.zip media-processor/
+            cd ../../..
+          done
+          
+          # macOS packages
+          for arch in amd64 arm64; do
+            mkdir -p release/macos/$arch/media-processor/{configs,images}
+            cp release/macos/$arch/media-processor release/macos/$arch/media-processor/
+            cp configs/config.yaml.example release/macos/$arch/media-processor/configs/config.yaml
+            cd release/macos/$arch && tar -czf ../../media-processor-macos-$arch.tar.gz media-processor/
+            cd ../../..
+          done
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            Release notes for version ${{ github.ref_name }}.
+            
+            ## 支持平台
+            - Linux (amd64, arm64)
+            - Windows (amd64, arm64)
+            - macOS (amd64, arm64)
+            
+            ## 部署说明
+            1. 下载对应平台和架构的压缩包并解压
+            2. 修改 configs/config.yaml 配置文件
+            3. 运行可执行文件
+            
+            ## 架构说明
+            - amd64: 64位 x86 处理器
+            - arm64: 64位 ARM 处理器（如 Apple M1/M2, 树莓派4等）
+          files: |
+            release/media-processor-linux-amd64.tar.gz
+            release/media-processor-linux-arm64.tar.gz
+            release/media-processor-windows-amd64.zip
+            release/media-processor-windows-arm64.zip
+            release/media-processor-macos-amd64.tar.gz
+            release/media-processor-macos-arm64.tar.gz
+          
+      - name: Clean up workspace
+        if: always()
+        run: |
+          rm -rf release/ 
