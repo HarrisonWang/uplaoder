@@ -51,31 +51,39 @@ jobs:
           
       - name: Create release packages
         run: |
+          # 先清理并创建发布目录
+          rm -rf release/packages/
+          mkdir -p release/packages/
+          
           # Linux packages
           for arch in amd64 arm64; do
-            mkdir -p release/linux/$arch/media-processor/{configs,images}
-            cp release/linux/$arch/media-processor release/linux/$arch/media-processor/
-            cp configs/config.yaml.example release/linux/$arch/media-processor/configs/config.yaml
-            cd release/linux/$arch && tar -czf ../../media-processor-linux-$arch.tar.gz media-processor/
-            cd ../../..
+            # 创建临时打包目录
+            mkdir -p release/packages/linux/$arch/media-processor/{configs,images}
+            # 复制二进制文件
+            cp release/linux/$arch/media-processor release/packages/linux/$arch/media-processor/
+            # 复制配置文件
+            cp configs/config.yaml.example release/packages/linux/$arch/media-processor/configs/config.yaml
+            # 打包
+            cd release/packages/linux/$arch && tar -czf ../../../media-processor-linux-$arch.tar.gz media-processor/
+            cd ../../../../
           done
           
           # Windows packages
           for arch in amd64 arm64; do
-            mkdir -p release/windows/$arch/media-processor/{configs,images}
-            cp release/windows/$arch/media-processor.exe release/windows/$arch/media-processor/
-            cp configs/config.yaml.example release/windows/$arch/media-processor/configs/config.yaml
-            cd release/windows/$arch && zip -r ../../media-processor-windows-$arch.zip media-processor/
-            cd ../../..
+            mkdir -p release/packages/windows/$arch/media-processor/{configs,images}
+            cp release/windows/$arch/media-processor.exe release/packages/windows/$arch/media-processor/
+            cp configs/config.yaml.example release/packages/windows/$arch/media-processor/configs/config.yaml
+            cd release/packages/windows/$arch && zip -r ../../../media-processor-windows-$arch.zip media-processor/
+            cd ../../../../
           done
           
           # macOS packages
           for arch in amd64 arm64; do
-            mkdir -p release/macos/$arch/media-processor/{configs,images}
-            cp release/macos/$arch/media-processor release/macos/$arch/media-processor/
-            cp configs/config.yaml.example release/macos/$arch/media-processor/configs/config.yaml
-            cd release/macos/$arch && tar -czf ../../media-processor-macos-$arch.tar.gz media-processor/
-            cd ../../..
+            mkdir -p release/packages/macos/$arch/media-processor/{configs,images}
+            cp release/macos/$arch/media-processor release/packages/macos/$arch/media-processor/
+            cp configs/config.yaml.example release/packages/macos/$arch/media-processor/configs/config.yaml
+            cd release/packages/macos/$arch && tar -czf ../../../media-processor-macos-$arch.tar.gz media-processor/
+            cd ../../../../
           done
           
       - name: Create GitHub Release
