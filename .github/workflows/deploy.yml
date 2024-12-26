@@ -13,13 +13,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      # 共享的环境变量
       SSH_HOST: ${{ vars.SSH_HOST }}
       SSH_USERNAME: ${{ vars.SSH_USERNAME }}
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
       SERVER_PORT: ${{ vars.SERVER_PORT }}
       MEDIA_URL_PREFIX: ${{ vars.MEDIA_URL_PREFIX }}
       ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ vars.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+      ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
       OCR_ENDPOINT: ${{ vars.OCR_ENDPOINT }}
       UPLOAD_PATH: ${{ vars.UPLOAD_PATH }}
 
@@ -45,8 +45,6 @@ jobs:
           ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
 
       - name: Prepare config file
-        env:
-          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
         run: |
           sudo apt-get update && sudo apt-get install -y gettext-base
           envsubst < configs/config.yaml.template > config.yaml
