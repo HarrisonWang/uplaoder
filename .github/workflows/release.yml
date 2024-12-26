@@ -116,6 +116,25 @@ jobs:
             release/media-processor-windows-arm64.zip
             release/media-processor-macos-amd64.tar.gz
             release/media-processor-macos-arm64.tar.gz
+
+      - name: Trigger Deploy Workflow
+        if: success()
+        uses: peter-evans/repository-dispatch@v2
+        continue-on-error: true
+        id: deploy-trigger
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          event-type: start-deploy
+          client-payload: '{"version": "${{ github.ref_name }}"}'
+
+      - name: Retry Deploy Trigger
+        if: steps.deploy-trigger.outcome == 'failure'
+        uses: peter-evans/repository-dispatch@v2
+        continue-on-error: true
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          event-type: start-deploy
+          client-payload: '{"version": "${{ github.ref_name }}"}'
           
       - name: Clean up workspace
         if: always()

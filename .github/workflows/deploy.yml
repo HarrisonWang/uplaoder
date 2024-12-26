@@ -1,0 +1,82 @@
+name: Deploy to Server
+
+on:
+  repository_dispatch:
+    types: [start-deploy]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '要部署的版本 (例如: v1.0.0)'
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      # 共享的环境变量
+      SSH_HOST: ${{ vars.SSH_HOST }}
+      SSH_USERNAME: ${{ vars.SSH_USERNAME }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      SERVER_PORT: ${{ vars.SERVER_PORT }}
+      MEDIA_URL_PREFIX: ${{ vars.MEDIA_URL_PREFIX }}
+      ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ vars.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+      OCR_ENDPOINT: ${{ vars.OCR_ENDPOINT }}
+      UPLOAD_PATH: ${{ vars.UPLOAD_PATH }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${{ github.event.client_payload.version }}" >> $GITHUB_ENV
+          fi
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+
+      - name: Prepare config file
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y gettext-base
+          envsubst < configs/config.yaml.template > config.yaml
+
+      - name: Download release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download $VERSION -p "*linux-amd64.tar.gz"
+          tar -xzf media-processor-linux-amd64.tar.gz
+
+      - name: Copy deploy script
+        run: |
+          chmod +x scripts/deploy.sh
+          scp scripts/deploy.sh $SSH_USERNAME@$SSH_HOST:/tmp/
+
+      - name: Execute deployment
+        run: |
+          # 停止服务
+          ssh $SSH_USERNAME@$SSH_HOST 'sudo systemctl stop media-processor || true'
+          
+          # 备份和部署
+          ssh $SSH_USERNAME@$SSH_HOST "/tmp/deploy.sh ${DEPLOY_PATH} backup"
+          scp config.yaml $SSH_USERNAME@$SSH_HOST:${DEPLOY_PATH}/configs/
+          scp media-processor/media-processor $SSH_USERNAME@$SSH_HOST:${DEPLOY_PATH}/
+          ssh $SSH_USERNAME@$SSH_HOST "/tmp/deploy.sh ${DEPLOY_PATH} deploy"
+          
+          # 部署 service 文件并启动服务
+          envsubst < scripts/media-processor.service | ssh $SSH_USERNAME@$SSH_HOST 'sudo tee /etc/systemd/system/media-processor.service'
+          ssh $SSH_USERNAME@$SSH_HOST 'sudo systemctl daemon-reload'
+          ssh $SSH_USERNAME@$SSH_HOST 'sudo systemctl enable media-processor'
+          ssh $SSH_USERNAME@$SSH_HOST 'sudo systemctl start media-processor'
+          ssh $SSH_USERNAME@$SSH_HOST 'sudo systemctl status media-processor'

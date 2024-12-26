@@ -1,0 +1,14 @@
+[Unit]
+Description=Media Processor Service
+After=network.target
+
+[Service]
+Type=simple
+User=${SSH_USERNAME}
+WorkingDirectory=${DEPLOY_PATH}
+ExecStart=${DEPLOY_PATH}/media-processor
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target 
