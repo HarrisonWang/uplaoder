@@ -2,12 +2,18 @@
 
 # 接收参数
 DEPLOY_PATH="$1"
-ACTION="$2"  # 可以是 backup, deploy
+ACTION="$2"  # 可以是 init, backup, deploy
 
-# 确保基础目录存在
+# 确保基础目录存在（移到 case 外面，这样每次执行都会检查）
 sudo mkdir -p "${DEPLOY_PATH}"/{configs,backups}
+sudo chown -R ${USER}:${USER} "${DEPLOY_PATH}"
 
 case $ACTION in
+  "init")
+    # 初始化：目录已经在上面创建
+    echo "Initialized ${DEPLOY_PATH}"
+    ;;
+    
   "backup")
     # 创建备份
     if [ -f "${DEPLOY_PATH}/media-processor" ]; then
