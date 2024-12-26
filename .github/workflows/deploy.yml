@@ -67,6 +67,7 @@ jobs:
           ssh $SSH_USERNAME@$SSH_HOST 'sudo systemctl stop media-processor || true'
           
           # 备份和部署
+          ssh $SSH_USERNAME@$SSH_HOST "/tmp/deploy.sh ${DEPLOY_PATH} init"
           ssh $SSH_USERNAME@$SSH_HOST "/tmp/deploy.sh ${DEPLOY_PATH} backup"
           scp config.yaml $SSH_USERNAME@$SSH_HOST:${DEPLOY_PATH}/configs/
           scp media-processor/media-processor $SSH_USERNAME@$SSH_HOST:${DEPLOY_PATH}/
