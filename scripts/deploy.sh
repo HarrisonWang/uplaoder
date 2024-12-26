@@ -4,10 +4,12 @@
 DEPLOY_PATH="$1"
 ACTION="$2"  # 可以是 backup, deploy
 
+# 确保基础目录存在
+sudo mkdir -p "${DEPLOY_PATH}"/{configs,backups}
+
 case $ACTION in
   "backup")
     # 创建备份
-    mkdir -p "${DEPLOY_PATH}/backups"
     if [ -f "${DEPLOY_PATH}/media-processor" ]; then
       cp "${DEPLOY_PATH}/media-processor" "${DEPLOY_PATH}/backups/media-processor.$(date +%Y%m%d_%H%M%S)"
       if [ -f "${DEPLOY_PATH}/configs/config.yaml" ]; then
@@ -20,7 +22,6 @@ case $ACTION in
 
   "deploy")
     # 部署新文件
-    mkdir -p "${DEPLOY_PATH}/configs"
     chmod +x "${DEPLOY_PATH}/media-processor"
     ;;
 
