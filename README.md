@@ -36,7 +36,7 @@ git clone https://github.com/harrisonwang/media-processor.git
 go mod download
 
 # Copy example config
-cp configs/config.yaml.example configs/config.yaml
+cp configs/config.yaml.template configs/config.yaml
 
 # Edit config file with your settings
 vim configs/config.yaml
@@ -121,7 +121,7 @@ mkdir configs images
 2. Copy config file to server and edit config file
 
 ```bash
-cp configs/config.yaml.example configs/config.yaml
+cp configs/config.yaml.template configs/config.yaml
 vim configs/config.yaml
 ```
 

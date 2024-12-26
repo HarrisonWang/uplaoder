@@ -62,7 +62,7 @@ jobs:
             # 复制二进制文件
             cp release/linux/$arch/media-processor release/packages/linux/$arch/media-processor/
             # 复制配置文件
-            cp configs/config.yaml.example release/packages/linux/$arch/media-processor/configs/config.yaml
+            cp configs/config.yaml.template release/packages/linux/$arch/media-processor/configs/config.yaml
             # 打包
             cd release/packages/linux/$arch && tar -czf ../../../media-processor-linux-$arch.tar.gz media-processor/
             cd ../../../../
@@ -72,7 +72,7 @@ jobs:
           for arch in amd64 arm64; do
             mkdir -p release/packages/windows/$arch/media-processor/{configs,images}
             cp release/windows/$arch/media-processor.exe release/packages/windows/$arch/media-processor/
-            cp configs/config.yaml.example release/packages/windows/$arch/media-processor/configs/config.yaml
+            cp configs/config.yaml.template release/packages/windows/$arch/media-processor/configs/config.yaml
             cd release/packages/windows/$arch && zip -r ../../../media-processor-windows-$arch.zip media-processor/
             cd ../../../../
           done
@@ -81,7 +81,7 @@ jobs:
           for arch in amd64 arm64; do
             mkdir -p release/packages/macos/$arch/media-processor/{configs,images}
             cp release/macos/$arch/media-processor release/packages/macos/$arch/media-processor/
-            cp configs/config.yaml.example release/packages/macos/$arch/media-processor/configs/config.yaml
+            cp configs/config.yaml.template release/packages/macos/$arch/media-processor/configs/config.yaml
             cd release/packages/macos/$arch && tar -czf ../../../media-processor-macos-$arch.tar.gz media-processor/
             cd ../../../../
           done
